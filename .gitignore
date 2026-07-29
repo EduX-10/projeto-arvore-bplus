@@ -1,0 +1,11 @@
+# Arquivos compilados do Java
+*.class
+bin/
+out/
+
+# Arquivo de dados da nossa árvore
+dados_arvore.dat
+
+# Pastas de IDEs (se estiver usando)
+.vscode/
+.idea/
