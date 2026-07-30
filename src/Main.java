@@ -3,7 +3,7 @@ import java.util.InputMismatchException;
 import java.util.Scanner;
 
 public class Main {
-    private static final String NOME_ARQUIVO = "dados_arvore.dat";
+    private static final String NOME_ARQUIVO = "dados_adotantes.dat";
 
     public static void main(String[] args) {
         ArvoreBMais arvore = carregarDados();
@@ -25,11 +25,11 @@ public class Main {
                 opcao = scanner.nextInt();
 
                 if (opcao == 1) {
-                    System.out.print("Digite o ID (CPF/Matrícula): ");
+                    System.out.print("Digite o ID (CPF): ");
                     int id = scanner.nextInt();
-                    scanner.nextLine(); // Limpar buffer
+                    scanner.nextLine(); 
 
-                    // Trava de Segurança: Verificação de ID Duplicado
+                    // Verificação de ID Duplicado
                     if (arvore.buscar(id) != null) {
                         System.out.println("Erro: Já existe um adotante cadastrado com o ID " + id + ".");
                         continue;
@@ -39,8 +39,7 @@ public class Main {
                     String nome = scanner.nextLine();
                     System.out.print("Digite a Idade: ");
                     int idade = scanner.nextInt();
-                    scanner.nextLine(); // Limpar buffer
-
+                    scanner.nextLine(); 
                     System.out.print("Digite o Telefone: ");
                     String telefone = scanner.nextLine();
                     System.out.print("Digite o Animal de Interesse (Ex: Cão, Gato): ");
@@ -76,9 +75,8 @@ public class Main {
                     System.out.println("Opção inválida! Tente novamente.");
                 }
             } catch (InputMismatchException e) {
-                // Trava de Segurança: Evita que o programa quebre se o usuário digitar letras
                 System.out.println("Entrada inválida! Por favor, digite apenas números onde solicitado.");
-                scanner.nextLine(); // Limpa o buffer corrompido para evitar loop infinito
+                scanner.nextLine(); 
             }
         }
 
