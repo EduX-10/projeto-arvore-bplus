@@ -26,8 +26,9 @@ public class ArvoreBMais implements Serializable {
             // Criamos uma nova placa de trânsito para ser a nova raiz
             NoInterno novaRaiz = new NoInterno();
             
-            // Pegamos a primeira chave da nova metade para servir de guia
-            novaRaiz.chaves.add(novaMetade.chaves.get(0)); 
+            // A chave-guia que sobe é a que foi promovida pelo split (não a
+            // primeira chave "crua" do nó novo - ver dividirInterno/dividirFolha)
+            novaRaiz.chaves.add(novaMetade.chaveGuia); 
             
             // Conectamos a raiz antiga na esquerda (filho 1), e a nova metade na direita (filho 2)
             novaRaiz.filhos.add(raiz);
@@ -83,8 +84,9 @@ public class ArvoreBMais implements Serializable {
             // 3. Se o filho rachou, precisamos acomodar o novo guia e a nova metade aqui neste nó interno
             if (novaMetadeDoFilho != null) {
                 
-                // O guia que sobe para este nó é a primeira chave da nova metade
-                int novoGuia = novaMetadeDoFilho.chaves.get(0);
+                // O guia que sobe para este nó é a chave promovida pelo split do filho
+                // (não necessariamente a primeira chave do nó novo - ver dividirInterno)
+                int novoGuia = novaMetadeDoFilho.chaveGuia;
                 
                 // Encontramos a posição para colocar o guia mantendo a ordem crescente
                 int j = 0;
@@ -163,6 +165,10 @@ public class ArvoreBMais implements Serializable {
         // A antiga agora aponta para a nova folha
         folhaAntiga.proximo = novaFolha;
         
+        // Em folhas, a chave-guia é simplesmente a primeira chave que ficou na
+        // nova folha - ela permanece duplicada na folha (característica da B+)
+        novaFolha.chaveGuia = novaFolha.chaves.get(0);
+        
         // Devolvemos a nova folha para o nó de cima criar a "placa de trânsito"
         return novaFolha;
     }
@@ -172,13 +178,22 @@ public class ArvoreBMais implements Serializable {
         NoInterno novoInterno = new NoInterno();
         int meio = internoAntigo.chaves.size() / 2;
         
-        // Movemos as chaves (guias) e os filhos (portas) para o novo nó interno
+        // IMPORTANTE: diferente da folha, um nó interno tem sempre
+        // (chaves + 1) filhos. Por isso a chave do meio não pode ficar
+        // duplicada nos dois lados - ela precisa "subir" de vez para o pai,
+        // sem sobrar em nenhum dos dois nós resultantes.
+        int chavePromovida = internoAntigo.chaves.remove(meio);
+        
+        // O que sobrou depois do meio (chaves e filhos) vai para o novo nó
         while (internoAntigo.chaves.size() > meio) {
             novoInterno.chaves.add(internoAntigo.chaves.remove(meio));
+        }
+        while (internoAntigo.filhos.size() > meio + 1) {
             novoInterno.filhos.add(internoAntigo.filhos.remove(meio + 1));
         }
-        // Movemos o último filho que sobrou após a divisão
-        novoInterno.filhos.add(internoAntigo.filhos.remove(meio + 1));
+        
+        // Guardamos a chave promovida para o nó de cima usar como guia
+        novoInterno.chaveGuia = chavePromovida;
         
         return novoInterno;
     }
@@ -310,6 +325,23 @@ public class ArvoreBMais implements Serializable {
             
             // Atualiza a placa de trânsito (nó pai) com a nova primeira chave do filho
             pai.chaves.set(indiceFilho - 1, folha.chaves.get(0));
+        } else {
+            // Mesma ideia, mas para nós internos: a chave não vem do irmão
+            // direto para o filho - ela passa "pelo pai" (rotação clássica de
+            // árvore B), porque nós internos guardam apenas chaves-guia, não
+            // os dados em si.
+            NoInterno interno = (NoInterno) filho;
+            NoInterno internoEsq = (NoInterno) esquerdo;
+
+            // A chave que estava separando os dois nós no pai desce para
+            // virar a primeira chave do filho
+            interno.chaves.add(0, pai.chaves.get(indiceFilho - 1));
+
+            // O último filho do irmão esquerdo passa a ser o primeiro filho deste nó
+            interno.filhos.add(0, internoEsq.filhos.remove(internoEsq.filhos.size() - 1));
+
+            // A última chave do irmão esquerdo sobe para ocupar o lugar no pai
+            pai.chaves.set(indiceFilho - 1, internoEsq.chaves.remove(internoEsq.chaves.size() - 1));
         }
     }
 
@@ -324,6 +356,19 @@ public class ArvoreBMais implements Serializable {
             
             // Atualiza a placa de trânsito (nó pai) com a nova primeira chave do irmão direito
             pai.chaves.set(indiceFilho, folhaDir.chaves.get(0));
+        } else {
+            NoInterno interno = (NoInterno) filho;
+            NoInterno internoDir = (NoInterno) direito;
+
+            // A chave que separava os dois nós no pai desce para virar a
+            // última chave deste nó
+            interno.chaves.add(pai.chaves.get(indiceFilho));
+
+            // O primeiro filho do irmão direito passa a ser o último filho deste nó
+            interno.filhos.add(internoDir.filhos.remove(0));
+
+            // A primeira chave do irmão direito sobe para ocupar o lugar no pai
+            pai.chaves.set(indiceFilho, internoDir.chaves.remove(0));
         }
     }
 
@@ -342,23 +387,43 @@ public class ArvoreBMais implements Serializable {
             // Deletamos a placa de trânsito que separava os dois no pai
             pai.chaves.remove(indiceEsquerdo);
             pai.filhos.remove(indiceEsquerdo + 1); // Removemos o ponteiro para o nó direito
+        } else {
+            NoInterno internoEsq = (NoInterno) esquerdo;
+            NoInterno internoDir = (NoInterno) direito;
+
+            // A chave que separava os dois nós no pai "desce" e passa a viver
+            // dentro do nó fundido, entre as chaves que vieram de cada lado
+            internoEsq.chaves.add(pai.chaves.get(indiceEsquerdo));
+
+            // Juntamos as chaves e os filhos do nó direito dentro do esquerdo
+            internoEsq.chaves.addAll(internoDir.chaves);
+            internoEsq.filhos.addAll(internoDir.filhos);
+
+            // Deletamos a placa de trânsito que separava os dois no pai
+            pai.chaves.remove(indiceEsquerdo);
+            pai.filhos.remove(indiceEsquerdo + 1);
         }
     }
 
     // --- Classes Internas para os Nós ---
     
     // Classe base abstrata
-    abstract class No implements Serializable {
+    static abstract class No implements Serializable {
         List<Integer> chaves = new ArrayList<>();
+        // Chave a ser promovida para o pai quando este nó nasce de um split.
+        // Para folhas: é a primeira chave (fica duplicada, como manda a B+).
+        // Para nós internos: é a chave do meio que foi removida no split
+        // (não fica duplicada em nenhum lado, senão a conta de filhos não fecha).
+        Integer chaveGuia;
     }
 
     // Nó Interno (As "Placas de trânsito")
-    class NoInterno extends No {
+    static class NoInterno extends No {
         List<No> filhos = new ArrayList<>();
     }
 
     // Nó Folha (Os "Vagões de dados")
-    class NoFolha extends No {
+    static class NoFolha extends No {
         List<Pessoa> valores = new ArrayList<>();
         NoFolha proximo; // Ponteiro para a próxima folha (lista encadeada)
     }
