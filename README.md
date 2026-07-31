@@ -20,7 +20,7 @@ O projeto faz parte de uma solução em duas camadas:
 
 ---
 
-## ⚙️ Funcionalidades (CRUD Completo)
+## ⚙️ Funcionalidades 
 
 - [x] **➕ Inserção:** Adiciona novos adotantes mantendo a árvore balanceada. Suporta divisão de nós (*Split*) e promoção de chaves para níveis superiores.
 - [x] **🔍 Busca O(log n):** Localiza instantaneamente um adotante pelo seu ID/CPF navegando pelos nós internos até as folhas.
